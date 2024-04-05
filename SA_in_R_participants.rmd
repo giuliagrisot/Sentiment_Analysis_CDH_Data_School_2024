@@ -169,11 +169,11 @@ remove(user_ids)
 
 ```
 
-For this exercise, we will use the polarity dictionary from the qdapDictionaries package. The default polarity dictionary is the hash_sentiment_huliu dictionary, which is a list of positive and negative words, along with their polarity scores. The polarity scores range from -5 to 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment. Let's have a look at the dictionary first.
+For this exercise, we will use the dictionary 'hash_sentiment_jockers' from the package 'lexicon'. hash_sentiment_jockers is a dictionary of sentiment words and their polarity scores, which range from -5 to 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment.
 
 ```{r}
 # load and observe the polarity dictionary
-head(hash_sentiment_huliu)
+head(hash_sentiment_jockers)
 
 # you can also try to see the end of the dictionary, uncomment the following and execute the chunk
 # tail(hash_sentiment_huliu)
@@ -182,34 +182,36 @@ head(hash_sentiment_huliu)
 
 You can see that it contains a list of words and their polarity scores. The polarity scores range from -5 to 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment.
 
-Now that we have the tweets and the polarity dictionary, we can calculate the polarity of the tweets using the polarity() function from the qdap package.
+Now that we have the tweets and the polarity dictionary, we can calculate the polarity of the tweets using the polarity() function from the qdap package. The polarity() function takes two arguments: 'text.var' and 'grouping.var'. In this case, we will use 'text' for the text field, and 'user_id' as the grouping variable. The function will calculate the polarity of the tweets, and it will return a list with the polarity scores for each tweet.
+
+You can see that the dataset contains a user_id and a text. 
 
 ```{r}
-# Let's have another look at the columns in our dataset
-names(gotTwitter_sample)
-
+# look at the column names of our dataset
+colnames(gotTwitter_sample)
 ```
 
-You can see that the dataset contains a user_id and a text. The user_id is used to group the text (it could be that the same user writes multiple tweets), and the text is the text of the document. We can use these two columns to calculate the polarity of the tweets.
+
+The user_id will be used to group the text (it could be that the same user writes multiple tweets), and the text is the text of the document. We can use these two columns to calculate the polarity of the tweets.
 
 We'll use the function 'polarity' to calculate it. The function takes two arguments: 'text.var' and 'grouping.var'. In this case, we will use 'text' for the text field, and 'user_id' as the grouping variable. The function will calculate the polarity of the tweets, and it will return a list with the polarity scores for each tweet.
 
 ```{r}
 # Calc overall polarity scores.
 # This operation might be a bit too heavy for your computer, so I saved the results in a rds file. You can load it and skip the next chunk.
-
-tweet_polarity <- gotTwitter_sample %$% polarity(
-        text.var = text,
-        grouping.var = user_id,
-        deamplifiers = deamplification.words,
-        amplifiers = amplification.words,
-        negators = negation.words,
-        polarity.frame = hash_sentiment_huliu
-        # change the polarity.frame parameter if you want to use another lexicon: the options are hash_sentiment_huliu, hash_sentiment_jockers_rinker, hash_sentiment_sentiword, nrck, bing, afinn
-  )
-
-# We can save the results in a rData file, so we can load them later without having to re-run the code
-# save(tweet_polarity, file="tweet_polarity.RData")
+# 
+# tweet_polarity <- gotTwitter_sample %$% polarity(
+#         text.var = text,
+#         grouping.var = user_id,
+#         deamplifiers = deamplification.words,
+#         amplifiers = amplification.words,
+#         negators = negation.words,
+#         polarity.frame = hash_sentiment_jockers
+#         # change the polarity.frame parameter if you want to use another lexicon: the options are hash_sentiment_huliu, hash_sentiment_jockers_rinker, hash_sentiment_sentiword, nrck, bing, afinn
+#   )
+# 
+# # We can save the results in a rData file, so we can load them later without having to re-run the code
+# # save(tweet_polarity, file="tweet_polarity.RData")
 
 ```
 
@@ -251,7 +253,7 @@ head(tweet_polarity[["group"]])
 
 If we want to make a first plot of the polarity scores, we can use the 'group' element of the list. We can use the 'ave.polarity' column to order the users by their polarity score.
 
-We can easily plot the polarity scores as barplots with ggplot, with colors signalling positive (red) and negative (blue) scores.
+We can easily plot the polarity scores as barplots with ggplot. One first way do so is to count the positive and negative tweets. We can color the bars in the plot with ggplot, with colors signalling positive (red) and negative (blue) scores.
 
 ```{r}
 # first we create a tibble from the group element of the list, and we add a column with the discrete polarity (positive or negative) that we can use to color the bars in the plot with ggplot. We can then plot the polarity scores of the tweets by user.
@@ -277,6 +279,7 @@ tweet_polarity[["group"]] %>%
        y = "Number of tweets")
 
 ```
+In this case, we can see how many tweets are overall positive and negative. We lose however information about the degrees of positivity and negativity. To see that, we can plot a histogram of the polarity scores.
 
 ```{r}
 
@@ -293,10 +296,12 @@ tweet_polarity[["all"]] %>%
   theme(legend.position = "none") +
   scale_x_continuous(breaks = seq(-5, 5, 1))
 
+
 ```
 
 
 ```{r}
+
 # We can also summarise the data in our polarity table with the tbl_summary function from the tbl_summary package.
 # The tbl_summary() function creates a summary table of the data, with the mean, median, standard deviation, and other summary statistics for each column. We can use the select() function from the dplyr package to select the columns we want to use, and the tbl_summary() function to create the summary table.
 # The function syntax is tbl_summary(data, statistic = list(all_continuous() ~ "all")), where data is the data frame, and statistic is the summary statistics we want to use. In this case, we will use the all_continuous() function to calculate the mean, median, standard deviation, and other summary statistics for each column.
@@ -316,7 +321,7 @@ tweet_polarity[["all"]] %>%
 
 ```
 
-The equation used by the algorithm in qdap to assign value to polarity of each sentence fist utilizes the sentiment dictionary (Hu and Liu, 2004) to tag polarized words. Then it creates a cluster around the polarized word. Within the cluster valence shifters adjust the score. Valence shifters are words that amplify or negate the emotional intent of the subjectivity word. For example, 'well known' is positive while 'not well known' is negative. Here 'not' is a negating term and reverses the emotional intent of 'well known.' In contrast, 'very well known' employs an amplifier increasing the positive intent.
+The equation used by the algorithm in qdap to assign value to polarity of each sentence fist utilizes the sentiment dictionary (Jokers 2017) to tag polarized words. Then it creates a cluster around the polarized word. Within the cluster valence shifters adjust the score. Valence shifters are words that amplify or negate the emotional intent of the subjectivity word. For example, 'well known' is positive while 'not well known' is negative. Here 'not' is a negating term and reverses the emotional intent of 'well known.' In contrast, 'very well known' employs an amplifier increasing the positive intent.
 
 We can also examine the valence shifters considered by the algorithm, such as negators, amplifiers and de-amplifiers. A list of these can be found in the qdapDictionaries package.
 
@@ -508,11 +513,11 @@ gc()
 Let's move on!
 
 
-# Sentiment analysis with tidytext - corpus of novels
+# 'Tidy' sentiment analysis - corpus of novels
 
-The tidytext package provides a framework for text mining using the tidy data principles. It is built around the tidyverse, and it provides functions to manipulate and analyse text data. The package is built around the concept of tidy data, which is a standard way of mapping the meaning of a dataset to its structure. A dataset is tidy if each variable is a column, each observation is a row, and each value is a cell.
+The tidyverse packages (dplyr, tidyr, ggplot2, etc.) are a collection of packages for data manipulation and visualization in R. The tidytext package is a package for text mining and sentiment analysis in R. The tidytext package provides a set of functions to manipulate and analyse text data. It provides functions to convert text data into a tidy format, and it provides functions to analyse text data using the tidyverse. The package also provides a set of functions to perform sentiment analysis on text data.
 
-The tidytext package provides a set of functions to manipulate and analyse text data. It provides functions to convert text data into a tidy format, and it provides functions to analyse text data using the tidyverse. The package also provides a set of functions to perform sentiment analysis on text data. The sentiment analysis functions in the tidytext package are based on the concept of sentiment lexicons, which are lists of words and their sentiment scores. The sentiment scores are either positive or negative, and they are used to calculate the sentiment of a text. The tidytext package provides functions to load sentiment lexicons, join them to text data, and calculate the sentiment of a text. It also provides functions to visualize the sentiment of a text, and to summarize the sentiment of a text.
+The sentiment analysis functions in the tidytext package are (again) based on the concept of sentiment lexicons, which are lists of words and their sentiment scores. The sentiment scores are either positive or negative, and they are used to calculate the sentiment of a text. The tidytext package provides functions to load sentiment lexicons, join them to text data, and calculate the sentiment of a text. It also provides functions to visualize the sentiment of a text, and to summarize the sentiment of a text.
 
 In this exercise, you will use the tidytext package to perform sentiment analysis on a set of texts. You will use the get_sentiments() function to load a sentiment lexicon, and you will use the left_join() function to join the sentiment lexicon to the text data. You will then use the count() function to count the number of positive and negative words in each text, and you will use the ggplot2 package to visualize the results.
 
@@ -525,6 +530,10 @@ Let's start by loading the sentiment lexicon from the tidytext package.
 bing_lex <- get_sentiments("bing")
 nrc_lex <- get_sentiments("nrc")
 afinn_lex <- get_sentiments("afinn")
+
+# we can also loadand save the jockers lexicon we used previously
+jockers_lex <- lexicon::hash_sentiment_jockers %>%
+  rename(word = 1, jockers_polarity = 2)
 
 # did you see them appear in the environment pane?
 # click on them to see the structure of the lexicons
@@ -636,8 +645,50 @@ Pretty neat, right? We calculated the sentiment score as the diffrence between t
 Can you repeat this using a different lexicon?
 
 ```{r}
-# your turn!
 
+text_sentiment_jockers <- text_sentences %>%
+  unnest_tokens(input = sentence, 
+                output = token) %>%
+  left_join(jockers_lex,
+             by = c("token"="word"))
+```
+
+Lets plot the results. Remember that jocker's lexicon has a different scale than bing's, so the results will be different.
+
+```{r}
+
+# Create a barplot of the sentiment scores using ggplot2. Note that the jockers lexicon has continuous sentiment scores, so we can calculate the sentiment score for each text as the difference between the number of positive and negative words in each text.
+
+text_sentiment_jockers %>%
+  group_by(doc_id) %>%
+  summarise(jockers_polarity = mean(jockers_polarity, na.rm = T)) %>% # we want to calculate the sentiment score for each text
+  ggplot(aes(x = reorder(doc_id, jockers_polarity),
+             y = jockers_polarity,
+             fill = jockers_polarity)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    axis.text.x = element_text(angle=60, hjust=1),
+        legend.position = "none") +
+  labs(title = "Mean polarity scores of texts (jockers lexicon)",
+       x = "Text",
+       y = "Mean polarity score")
+
+
+
+```
+
+
+
+```{r}
+# your turn!
+text_sentiment_nrc <- text_sentences %>%
+  unnest_tokens(input = sentence, 
+                output = token) %>%
+  left_join(nrc_lex,
+             by = c("token"="word"))
 ```
 
 
@@ -830,6 +881,34 @@ Can you find out which sentences have the highest and lowest sentiment scores in
 # Visualizing the sentiment arc of texts
 
 Another classic way to visualize the sentiment of the sentences in each novel is to create a line plot of the sentiment scores of the sentences in each text that shows the narrative arc of the sentiment of the text. We can use the ggplot2 package to create the line plot, and the geom_smooth() function to add a smoothed line to the plot.
+
+```{r}
+
+# Create a line plot of the sentiment scores of the sentences in each text that shows the narrative arc of the sentiment of the text
+
+text_sentiment_jockers %>%
+  filter(!is.na(jockers_polarity)) %>%
+  group_by(doc_id, sentence_id) %>%
+  summarise(jockers_polarity = mean(jockers_polarity, na.rm = T)) %>%
+  ggplot(aes(x = sentence_id,
+             y = jockers_polarity,
+             group = doc_id,
+             color = doc_id)) +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle=60, hjust=1),
+    legend.position = "none") +
+  labs(title = "Sentiment arc of texts (jockers lexicon)",
+       x = "Sentence",
+       y = "Mean polarity score") +
+  facet_wrap(~doc_id, scales = "free_x")
+
+
+
+```
+
+
 
 ## EXCERCISE 6
 
