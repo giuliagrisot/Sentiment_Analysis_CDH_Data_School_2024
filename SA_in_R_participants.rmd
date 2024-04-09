@@ -804,8 +804,93 @@ text_sentiment_afinn %>%
 
 Can you repeat the above steps to calculate the most frequent sentiment words in each novel in our corpus?
 
+```{r, solution, echo = FALSE}
+
+# Possible solution:
+
+
+text_sentiment_afinn %>%
+  filter(!is.na(value)) %>%
+  mutate(polarity = ifelse(value < 0, "negative", "positive")) %>% # we want to calculate the sentiment score for each sentence
+  count(token, polarity, doc_id) %>%
+  group_by(polarity) %>%
+  top_n(30, n) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(token, n),
+             y = n,
+             fill = polarity)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle=60, hjust=1),
+    strip.text = element_text(angle=60, hjust=.5),
+    legend.position = "none",
+    # axis.title.x = element_blank()
+    ) +
+  coord_flip() +
+  labs(title = "Frequency of sentiment words in the text data",
+       x = "Word",
+       y = "Frequency") +
+  facet_grid(polarity~doc_id, scales = "free_y")
+
+```
+
 ```{r}
-# your turn!
+
+# Another solution:
+
+# positive words only 
+
+text_sentiment_afinn %>%
+  anti_join(tibble(token = stopwords('en'))) %>%
+  filter(value > 0) %>%
+  # summarize count per word per book
+  count(doc_id, token) %>%
+  # get top 15 words per book
+  group_by(doc_id) %>%
+  slice_max(order_by = n, n = 15) %>%
+  mutate(word = reorder_within(token, n, doc_id)) %>%
+  # create barplot
+  ggplot(aes(x = reorder(token, n), y = n, fill = doc_id)) +
+  geom_col() +
+  # scale_x_reordered() +
+  labs(
+    title = "Top 15 positive words per book",
+    x = NULL,
+    y = "Word count"
+  ) +
+  facet_wrap(facets = vars(doc_id), scales = "free") +
+  coord_flip() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d()
+
+
+# and negative words only
+
+text_sentiment_afinn %>%
+  anti_join(tibble(token = stopwords('en'))) %>%
+  filter(value < 0) %>%
+  # summarize count per word per book
+  count(doc_id, token) %>%
+  # get top 15 words per book
+  group_by(doc_id) %>%
+  slice_max(order_by = n, n = 15) %>%
+  mutate(word = reorder_within(token, n, doc_id)) %>%
+  # create barplot
+  ggplot(aes(x = reorder(token, n), y = n, fill = doc_id)) +
+  geom_col() +
+  # scale_x_reordered() +
+  labs(
+    title = "Top 15 negative words per book",
+    x = NULL,
+    y = "Word count"
+  ) +
+  facet_wrap(facets = vars(doc_id), scales = "free") +
+  coord_flip() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d(option = "magma")
+
 
 ```
 
@@ -874,9 +959,100 @@ Remember we can also use again qdap polarity() and have a look at the words that
 Can you find out which sentences have the highest and lowest sentiment scores in our corpus, for each novel?
 
 ```{r}
-# your turn!
+# We can use the arrange() function to order the sentiment scores of the sentences in each text, and the head() function to select the top and bottom sentences.
+
+# Find out what is the sentence with highest sentiment score in each novel
+
+text_sentiment_afinn_sentence %>%
+  group_by(doc_id) %>%
+  arrange(desc(positive_value)) %>%
+  slice(1) %>%
+  select(sentence_id, doc_id, sentence, positive_value, negative_value, sent_words_pos, sent_words_neg)
 
 ```
+
+If on the other hand we are interested in looking closely at the sentiment of words within a sentence, we can 1) add a 'fake' line number to the dataset, that splits each sentence into chunks of 10 words, and print a heatmap of the sentiment of words of a specific sentence, distributing words in the x axis and the chunks in the y axis.
+
+We can isolate one sentence and plot the sentiment of the words in the sentence. Let's first look  for a sentence that is has a high number of negative and positive words.
+
+```{r}
+
+# Select a the sentence that has the highest number of positive words in the text data:
+
+text_sentiment_afinn_sentence %>%
+  filter(!is.na(positive_value)) %>%
+  arrange(desc(positive_value)) %>%
+  slice(1) %>%
+  select(sentence_id, doc_id, sentence, positive_value, negative_value, sent_words_pos, sent_words_neg)
+
+```
+
+Ok, now we have a sentence_id, 12540
+
+
+```{r}
+
+# Create a heatmap of the sentiment of the sentence 12540
+
+test_sentence <- text_sentiment_afinn %>%
+  filter(sentence_id == 12540, doc_id == "Cbronte_Shirley_1849.txt")
+
+test_sentence %>%
+  mutate(line_number = rep(1:ceiling(n() / 10), each = 10, length.out = n())) %>%
+  mutate(token_position = rep(1:10, length.out = n())) %>%
+  ggplot(aes(x = token_position,
+             y = -line_number,
+             fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = token), size = 3) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle=60, hjust=1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position = "none") +
+  labs(title = "Sentiment of the words in the sentence 8421 (jockers lexicon)",
+       subtitle = test_sentence$doc_id[1],
+       x = "Word position",
+       y = "Line number")
+
+
+```
+
+
+Of course we can do the same with a different lexicon or a different sentence.
+
+```{r}
+
+# Create a heatmap of the sentiment of the sentence 8374 using the jockers lexicon. We can add a subtitle using the doc_id so that we can see which text the sentence belongs to.
+
+test_sentence <- text_sentiment_jockers %>%
+  filter(sentence_id == 2388, doc_id == "Woolf_Lighthouse_1927.txt")
+
+test_sentence %>%
+  mutate(line_number = rep(1:ceiling(n() / 10), each = 10, length.out = n())) %>%
+  mutate(token_position = rep(1:10, length.out = n())) %>%
+  ggplot(aes(x = token_position,
+             y = -line_number,
+             fill = jockers_polarity)) +
+  geom_tile() +
+  geom_text(aes(label = token), size = 3) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle=60, hjust=1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    legend.position = "none") +
+  labs(title = "Sentiment of the words in the sentence 8421 (jockers lexicon)",
+       subtitle = test_sentence$doc_id[1],
+       x = "Word position",
+       y = "Line number")
+
+
+```
+
 
 # Visualizing the sentiment arc of texts
 
